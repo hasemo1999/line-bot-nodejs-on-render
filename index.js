@@ -68,3 +68,17 @@ async function handleEvent(event) {
 
 // ポート設定（Render環境用）
 app.listen(process.env.PORT || 3000);
+import axios from 'axios';
+
+const DISCORD_WEBHOOK_URL = process.env.DISCORD_WEBHOOK_URL;
+
+function sendImageToDiscord(imageUrl) {
+  return axios.post(DISCORD_WEBHOOK_URL, {
+    content: "📈新しい株価画像が届いたよ！",
+    embeds: [
+      {
+        image: { url: imageUrl },
+      }
+    ]
+  });
+}
