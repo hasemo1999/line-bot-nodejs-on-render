@@ -6,8 +6,10 @@ const config = {
   channelAccessToken: process.env.CHANNEL_ACCESS_TOKEN,
   channelSecret: process.env.CHANNEL_SECRET
 };
+
 const app = express();
 app.use(middleware(config));
+
 const client = new Client(config);
 
 app.post('/webhook', async (req, res) => {
@@ -21,46 +23,52 @@ async function handleEvent(event) {
     return Promise.resolve(null);
   }
 
-  // 画像の一時URLを取得（LINEサーバーの画像URL）
+  // LINE画像の一時URLを取得
   const messageId = event.message.id;
   const imageUrl = `https://api-data.line.me/v2/bot/message/${messageId}/content`;
 
-  // LINEの画像をBase64に変換
+  // LINE画像 → base64
   const imageData = await axios.get(imageUrl, {
-    headers: { Authorization: `Bearer ${process.env.CHANNEL_ACCESS_TOKEN}` },
+    headers: {
+      Authorization: `Bearer ${process.env.CHANNEL_ACCESS_TOKEN}`
+    },
     responseType: 'arraybuffer'
   });
 
-  const base64Image = Buffer.from(imageData.data).toString('base64');
+  const base64Image = Buffer.from(imageData.data, 'binary').toString('base64');
 
-  // OpenAI Vision APIで画像を分析（Vision GPT-4 Turbo）
-  const openaiResponse = await axios.post('https://api.openai.com/v1/chat/completions', {
-    model: 'gpt-4-vision-preview',
-    messages: [
-      {
-        role: 'system',
-        content: 'あなたは株チャートの専門家です。トレードアドバイスを出してください。'
-      },
-      {
-        role: 'user',
-        content: [
-          { type: 'text', text: 'この画像の株チャートを分析してください' },
-          {
-            type: 'image_url',
-            image_url: {
-              url: `data:image/jpeg;base64,${base64Image}`
+  // OpenAI Vision API で画像解析
+  const openaiResponse = await axios.post(
+    'https://api.openai.com/v1/chat/completions',
+    {
+      model: 'gpt-4o',
+      messages: [
+        {
+          role: 'system',
+          content: 'あなたは株チャートの専門家です。'
+        },
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: 'この画像の株チャートを分析して、重要なポイントを教えてください。' },
+            {
+              type: 'image_url',
+              image_url: {
+                url: `data:image/jpeg;base64,${base64Image}`
+              }
             }
-          }
-        ]
+          ]
+        }
+      ],
+      max_tokens: 500
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+        'Content-Type': 'application/json'
       }
-    ],
-    max_tokens: 500
-  }, {
-    headers: {
-      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-      'Content-Type': 'application/json'
     }
-  });
+  );
 
   const reply = openaiResponse.data.choices[0].message.content;
 
