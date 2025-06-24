@@ -1,91 +1,73 @@
-// 📦 必須モジュールを読み込み
-import express from 'express'
-import { middleware, Client } from '@line/bot-sdk'
-import axios from 'axios'
-import FormData from 'form-data'
+import express from 'express';
+import { middleware, Client } from '@line/bot-sdk';
+import axios from 'axios';
 
 const config = {
   channelAccessToken: process.env.CHANNEL_ACCESS_TOKEN,
-  channelSecret: process.env.CHANNEL_SECRET,
-}
+  channelSecret: process.env.CHANNEL_SECRET
+};
+const app = express();
+app.use(middleware(config));
+const client = new Client(config);
 
-const app = express()
-app.use(middleware(config))
-const client = new Client(config)
-
-// 🔁 Webhook の受信
 app.post('/webhook', async (req, res) => {
-  Promise.all(req.body.events.map(handleEvent)).then((result) => res.json(result))
-})
+  Promise
+    .all(req.body.events.map(handleEvent))
+    .then((result) => res.json(result));
+});
 
-// 🧠 Vision APIを呼び出して画像を解析する関数
-async function analyzeImageWithOpenAI(imageBuffer) {
-  const base64Image = imageBuffer.toString('base64')
-  const response = await axios.post(
-    'https://api.openai.com/v1/chat/completions',
-    {
-      model: 'gpt-4-vision-preview',
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'text',
-              text: 'このチャート画像からMACDやRSIのシグナルが出ているか分析して、買いか売りか判断して。',
-            },
-            {
-              type: 'image_url',
-              image_url: {
-                url: `data:image/jpeg;base64,${base64Image}`,
-              },
-            },
-          ],
-        },
-      ],
-      max_tokens: 1000,
-    },
-    {
-      headers: {
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-    }
-  )
-  return response.data.choices[0].message.content
-}
-
-// 🎯 イベント処理（画像を検出したら解析＆通知）
 async function handleEvent(event) {
   if (event.type !== 'message' || event.message.type !== 'image') {
-    return Promise.resolve(null)
+    return Promise.resolve(null);
   }
 
-  const messageId = event.message.id
-  const stream = await client.getMessageContent(messageId)
+  // 画像の一時URLを取得（LINEサーバーの画像URL）
+  const messageId = event.message.id;
+  const imageUrl = `https://api-data.line.me/v2/bot/message/${messageId}/content`;
 
-  // 画像データをBufferに変換
-  const chunks = []
-  for await (const chunk of stream) {
-    chunks.push(chunk)
-  }
-  const imageBuffer = Buffer.concat(chunks)
+  // LINEの画像をBase64に変換
+  const imageData = await axios.get(imageUrl, {
+    headers: { Authorization: `Bearer ${process.env.CHANNEL_ACCESS_TOKEN}` },
+    responseType: 'arraybuffer'
+  });
 
-  // ChatGPT Visionで分析
-  const analysis = await analyzeImageWithOpenAI(imageBuffer)
+  const base64Image = Buffer.from(imageData.data).toString('base64');
 
-  // Discordに通知（任意）
-  await axios.post(process.env.DISCORD_WEBHOOK_URL, {
-    content: `📊 画像分析結果（by ChatGPT）\n${analysis}`,
-  })
+  // OpenAI Vision APIで画像を分析（Vision GPT-4 Turbo）
+  const openaiResponse = await axios.post('https://api.openai.com/v1/chat/completions', {
+    model: 'gpt-4-vision-preview',
+    messages: [
+      {
+        role: 'system',
+        content: 'あなたは株チャートの専門家です。トレードアドバイスを出してください。'
+      },
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: 'この画像の株チャートを分析してください' },
+          {
+            type: 'image_url',
+            image_url: {
+              url: `data:image/jpeg;base64,${base64Image}`
+            }
+          }
+        ]
+      }
+    ],
+    max_tokens: 500
+  }, {
+    headers: {
+      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+      'Content-Type': 'application/json'
+    }
+  });
 
-  // LINEに返信
+  const reply = openaiResponse.data.choices[0].message.content;
+
   return client.replyMessage(event.replyToken, {
     type: 'text',
-    text: `🔍 画像を分析したよ！\n${analysis}`,
-  })
+    text: reply
+  });
 }
 
-// 🚀 起動
-app.listen(3000, () => {
-  console.log('LINE Bot is running on port 3000')
-})
+app.listen(10000);
