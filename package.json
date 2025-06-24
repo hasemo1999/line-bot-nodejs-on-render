@@ -1,7 +1,8 @@
 {
-  "name": "line-bot-node",
+  "name": "line-bot-nodejs-on-render",
   "version": "1.0.0",
   "main": "index.js",
+  "type": "module",
   "scripts": {
     "start": "node index.js"
   },
