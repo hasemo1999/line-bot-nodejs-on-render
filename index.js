@@ -55,7 +55,10 @@ async function analyzeStock(symbol, currentPrice) {
 async function sendLineNotification(userId, message) {
   await client.pushMessage(userId, { type: 'text', text: message });
 }
-
+// 📊 定期実行関数（CronJob推奨）
+async function checkAndNotify(...) {
+  // 
+}
 // 定期実行関数（CronJob推奨）
 async function checkAndNotify(symbol, userId) {
   const currentPrice = await getStockPrice(symbol);
