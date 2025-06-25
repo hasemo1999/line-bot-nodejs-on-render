@@ -23,17 +23,18 @@ app.post('/webhook', async (req, res) => {
 
   const text = event.message.text;
   let symbol = '';
-
-  if (text.includes('任天堂')) symbol = '7974.T';
-  else if (text.includes('トヨタ')) symbol = '7203.T';
-  else if (text.toUpperCase().includes('BTC')) symbol = 'BTC-USD';
-  else {
-    await client.replyMessage(event.replyToken, {
-      type: 'text',
-      text: 'その銘柄はまだ対応してないよ💦'
-    });
-    return res.sendStatus(200);
-  }
+  
+  const symbolMap = {
+  '任天堂': '7974.T',
+  'トヨタ': '7203.T',
+  'カプコン': '9697.T',
+  '大塚': '4578.T',
+  'サンリオ': '8136.T',
+  'フジクラ': '5803.T',
+  'ゼネテック': '4492.T',
+  'BTC': 'BTC-USD',
+  'ビットコイン': 'BTC-USD'
+};
 
   try {
     const response = await axios.get('https://yahoo-finance15.p.rapidapi.com/api/v1/markets/stock/quotes', {
