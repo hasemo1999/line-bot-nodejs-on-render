@@ -82,7 +82,8 @@ app.post('/webhook', async (req, res) => {
 
   res.sendStatus(200);
 });
-
+console.log("📍受信テキスト:", text);
+console.log("📍変換されたsymbol:", symbol);
 const port = process.env.PORT || 3000;
 app.listen(port, () => {
   console.log(`株価予測Bot稼働中 (port: ${port})`);
