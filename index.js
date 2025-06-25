@@ -15,7 +15,17 @@ app.post('/webhook', middleware(config), async (req, res) => {
 
 // TradingViewアラートはJSONだけ
 app.post('/alert', express.json(), async (req, res) => {
-  // LINEに通知送る処理...
+  try {
+    const message = req.body.message || '📢 TradingViewアラート受信！';
+    await client.pushMessage(process.env.USER_ID, {
+      type: 'text',
+      text: message
+    });
+    res.status(200).send('OK');
+  } catch (err) {
+    console.error('アラート送信エラー:', err);
+    res.status(500).send('NG');
+  }
 });
 
 const client = new Client(config);
