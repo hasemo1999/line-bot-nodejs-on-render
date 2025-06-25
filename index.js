@@ -8,9 +8,15 @@ const config = {
   channelSecret: process.env.CHANNEL_SECRET,
 };
 
-const app = express();
-app.use(express.json()); // JSON解析を先に
-app.use(middleware(config));
+// LINE Webhookは署名検証（middleware）だけ
+app.post('/webhook', middleware(config), async (req, res) => {
+  // イベント処理...
+});
+
+// TradingViewアラートはJSONだけ
+app.post('/alert', express.json(), async (req, res) => {
+  // LINEに通知送る処理...
+});
 
 const client = new Client(config);
 
