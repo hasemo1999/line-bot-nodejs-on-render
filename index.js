@@ -39,7 +39,8 @@ app.post('/webhook', async (req, res) => {
   if (event.type !== 'message' || event.message.type !== 'text') {
     return res.sendStatus(200);
   }
-
+console.log("📩 LINE受信テキスト:", text);
+console.log("🧠 対応シンボル:", symbol);
   const text = event.message.text;
   let symbol = '';
 
