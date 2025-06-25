@@ -35,7 +35,20 @@ app.post('/webhook', async (req, res) => {
   'BTC': 'BTC-USD',
   'ビットコイン': 'BTC-USD'
 };
+for (const key in symbolMap) {
+  if (text.includes(key)) {
+    symbol = symbolMap[key];
+    break;
+  }
+}
 
+if (!symbol) {
+  await client.replyMessage(event.replyToken, {
+    type: 'text',
+    text: 'その銘柄はまだ対応してないよ💦'
+  });
+  return res.sendStatus(200);
+}
   try {
     const response = await axios.get('https://yahoo-finance15.p.rapidapi.com/api/v1/markets/stock/quotes', {
       params: { symbol: symbol },
