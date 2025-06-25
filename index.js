@@ -15,6 +15,51 @@ const client = new Client(config);
 app.use(express.json());
 app.use(middleware(config));
 
+app.post('/webhook', async (req, res) => {
+  const event = req.body.events[0];
+  if (event.type !== 'message' || event.message.type !== 'text') {
+    return res.sendStatus(200);
+  }
+
+  const text = event.message.text;
+  let symbol = '';
+
+  if (text.includes('任天堂')) symbol = '7974.T';
+  else if (text.includes('トヨタ')) symbol = '7203.T';
+  else if (text.toUpperCase().includes('BTC')) symbol = 'BTC-USD';
+  else {
+    await client.replyMessage(event.replyToken, {
+      type: 'text',
+      text: 'その銘柄はまだ対応してないよ💦'
+    });
+    return res.sendStatus(200);
+  }
+
+  try {
+    const response = await axios.get('https://yahoo-finance15.p.rapidapi.com/api/v1/markets/stock/quotes', {
+      params: { symbol: symbol },
+      headers: {
+        'X-RapidAPI-Key': process.env.RAPIDAPI_KEY,
+        'X-RapidAPI-Host': 'yahoo-finance15.p.rapidapi.com'
+      }
+    });
+
+    const price = response.data.body[0].regularMarketPrice;
+
+    await client.replyMessage(event.replyToken, {
+      type: 'text',
+      text: `📈 ${symbol}の現在価格は ${price}円 です！`
+    });
+  } catch (error) {
+    await client.replyMessage(event.replyToken, {
+      type: 'text',
+      text: '価格取得に失敗しました💦'
+    });
+  }
+
+  res.sendStatus(200);
+});
+
 // 株価データを取得（TradingView APIを想定）
 async function getStockPrice(symbol) {
   const response = await axios.get(`https://your-api.com/stocks/${symbol}`);
